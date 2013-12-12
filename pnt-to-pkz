@@ -1,0 +1,75 @@
+#! /usr/bin/env python -u
+"""
+pnt-to-pkz [OPTIONS] { FILE.pnt [ ... ] | DIR }
+
+Convert one or more .pnt files to the much smaller .pnz format.  If a directory is given as
+the (single) argument, convert every .pnt file in that directory.
+"""
+
+import pnt, pickle, gzip, os, re, math, optparse, sys
+import numpy as np
+
+class Error(Exception):
+    pass
+
+def process_file(file, output=None, quiet=False):
+    if not os.path.isfile(file):
+        raise Error("file not found: %s" % file)
+    if os.path.isdir(output):
+        outfile = os.path.join(output, "%s.pkz" % re.sub(r'\.pnt$', '', os.path.basename(file)))
+    elif output:
+        outfile = output
+    else:
+        outfile = "%s.pkz" % re.sub(r'\.pnt$', '', file)
+    if not quiet: print "%s -> %s ..." % (file, outfile),
+    pfile = pnt.PntFile(file)
+    g = pnt.PntGrid()
+    g.load_pntfile(pfile)
+    with gzip.open(outfile, "wb") as f:
+        pickle.dump(g, f)
+        if not quiet: print "done."
+
+def process_dir(dir, output=None):
+    for file in os.listdir(dir):
+        if re.match(r'^.*\.pnt$', file):
+            process_file(os.path.join(dir,file), output)
+
+def main():
+    parser = optparse.OptionParser(__doc__)
+
+    parser.add_option("-o", "--output",
+                      help='name of output file, or directory (defaults to input file with pkz suffix)',
+                      dest='output', type="string")
+
+    (opts, args) = parser.parse_args()
+
+    # if we don't have at least one arg, error
+    if len(args) < 1:
+        parser.print_help()
+        sys.exit(-1)
+
+    # if there's only one arg, it might be a file or a dir
+    if len(args) == 1:
+        arg = args[0]
+        if os.path.isdir(arg):
+            process_dir(arg, output=opts.output)
+        else:
+            process_file(arg, output=opts.output)
+    # we have multiple args
+    else:
+        # deal with --output option
+        if opts.output:
+            if os.path.isdir(opts.output):
+                outdir = opts.output
+            else:
+                raise Error(("%s is not a directory, or does not exist (with directory arg, "
+                                 + "or multiple args, -o/--output must be a directory)") % opts.output)
+        # loop over each file arg
+        for file in args:
+            process_file(file, output=opts.output)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Error as e:
+        print "Error: %s" % e.message
