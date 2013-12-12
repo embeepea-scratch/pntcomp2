@@ -1,0 +1,113 @@
+#! /usr/bin/env python -u
+"""
+pkz-avg [ OPTIONS ] FILE_1 FILE_2 ... FILE_N
+
+Compute a sequence of one or more averages of pkz files.  The arguments
+should consist of N pkz filenames.  If the --count option is not given,
+a single average of all N input files is computed.
+
+If the --count=COUNT option is present, COUNT should be a positive
+integer less than N.  In this case, the program computes
+running averages of COUNT files at a time, starting with [FILE_1,...,FILE_COUNT], and
+ending with [FILE_(N-COUNT+1),...,FILE_N].
+
+Each output file is named the same as the last file in its input
+sequence, but with a prefix of "running-avg-" added, unless the
+--outfile-pattern=PATTERN argument is present, in which case PATTERN
+is used to generate the output filenames.  PATTERN should be a printf
+style format string, with a single %s conversion code; it will be
+replaced with the name of the last file in the corresponding input
+sequence, with any suffix (everything starting with the last period
+and continuing to the end of the filename) removed.
+
+Alternatively, if only a single output file is being written (i.e.
+the --count option is not present), the --outfile option may be
+used to specify an explicit output file name (not a pattern).
+
+The output files are written to the current directory, unless the --outdir=DIR
+option is given, in which case they are written to the directory DIR.
+"""
+
+import pnt, pickle, gzip, os, re, math, optparse, sys
+import numpy as np
+from error import Error
+
+def main():
+    parser = optparse.OptionParser(__doc__)
+
+    parser.add_option('--count',
+                      help='number of files to average over; defaults to all input files',
+                      dest='count', type="int", default=0)
+    parser.add_option('--outdir',
+                      help='directory in whicth to write output files',
+                      dest='outdir', type="string", default=".")
+    parser.add_option('--outfile-pattern',
+                      help='printf-style pattern for generating output filenames; must contain exactly one %s code',
+                      dest='outfile_pattern', type="string", default="running-avg-%s.pkz")
+    parser.add_option('--outfile',
+                      help='name of output file (not allowed if --count is given)',
+                      dest='outfile', type="string")
+    parser.add_option('--quiet',
+                      help='supress normal progress output',
+                      dest='verbose', default=True, action='store_false')
+
+    (opts, args) = parser.parse_args()
+
+
+    if len(args) < 2:
+        parser.print_help()
+        sys.exit(0)
+
+    if opts.outfile and opts.count > 0:
+        raise Error("--outfile and --count may not both be specified")
+
+    FILES = args
+
+    # N is the total number of files given
+    N = len(FILES)
+
+    COUNT = opts.count if opts.count > 0 else N
+
+    if N < COUNT:
+        raise Error("too few input files given")
+
+    if not os.path.exists(opts.outdir):
+        raise Error("output directory %s does not exist" % opts.outdir)
+
+    if not re.search(r'%s', opts.outfile_pattern):
+        raise Error("outfile-pattern must contain exactly one %s code")
+
+    # The grids list holds the COUNT files to be averages
+    grids = []
+
+    # load the first COUNT-1 files
+    for file in FILES[0:COUNT-1]:
+        if opts.verbose: print "loading %s" % file
+        with gzip.open(file, "rb") as f:
+            grids.append(pickle.load(f))
+
+    # for each remaining input file
+    for file in FILES[COUNT-1:]:
+        # load it onto the end of the grids list
+        if opts.verbose: print "loading %s" % file
+        with gzip.open(file, "rb") as f:
+            grids.append(pickle.load(f))
+        # generate the average of the COUNT files now in the grids list
+        if opts.verbose: print "averaging the last %1d files" % COUNT
+        g = pnt.PntGrid.avg(grids)
+        # write it to the output file
+        outfile = os.path.join(opts.outdir,
+                               (opts.outfile if opts.outfile
+                                else opts.outfile_pattern % re.sub(r'\.[^\.]*$', '', os.path.basename(file))))
+        if opts.verbose: print "writing %s" % outfile
+        with gzip.open(outfile, "wb") as f:
+            pickle.dump(g, f)
+        # pop the first (leftmost) grid off the list, in preparation for loading
+        # the next one
+        grids.pop(0)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Error as e:
+        print "Error: %s" % e.message

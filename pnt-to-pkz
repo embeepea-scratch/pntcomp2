@@ -8,9 +8,7 @@ the (single) argument, convert every .pnt file in that directory.
 
 import pnt, pickle, gzip, os, re, math, optparse, sys
 import numpy as np
-
-class Error(Exception):
-    pass
+from error import Error
 
 def process_file(file, opts):
     if not os.path.isfile(file):
