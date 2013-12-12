@@ -12,27 +12,27 @@ import numpy as np
 class Error(Exception):
     pass
 
-def process_file(file, output=None, quiet=False):
+def process_file(file, opts):
     if not os.path.isfile(file):
         raise Error("file not found: %s" % file)
-    if os.path.isdir(output):
-        outfile = os.path.join(output, "%s.pkz" % re.sub(r'\.pnt$', '', os.path.basename(file)))
-    elif output:
-        outfile = output
+    if opts.output and os.path.isdir(opts.output):
+        outfile = os.path.join(opts.output, "%s.pkz" % re.sub(r'\.pnt$', '', os.path.basename(file)))
+    elif opts.output:
+        outfile = opts.output
     else:
         outfile = "%s.pkz" % re.sub(r'\.pnt$', '', file)
-    if not quiet: print "%s -> %s ..." % (file, outfile),
+    if not opts.quiet: print "%s -> %s ..." % (file, outfile),
     pfile = pnt.PntFile(file)
     g = pnt.PntGrid()
     g.load_pntfile(pfile)
     with gzip.open(outfile, "wb") as f:
         pickle.dump(g, f)
-        if not quiet: print "done."
+        if not opts.quiet: print "done."
 
-def process_dir(dir, output=None):
+def process_dir(dir, opts):
     for file in os.listdir(dir):
         if re.match(r'^.*\.pnt$', file):
-            process_file(os.path.join(dir,file), output)
+            process_file(os.path.join(dir,file), opts)
 
 def main():
     parser = optparse.OptionParser(__doc__)
@@ -40,6 +40,9 @@ def main():
     parser.add_option("-o", "--output",
                       help='name of output file, or directory (defaults to input file with pkz suffix)',
                       dest='output', type="string")
+    parser.add_option("-q", '--quiet',
+                      help='supress normal progress message(s)',
+                      dest='quiet', default=False, action='store_true')
 
     (opts, args) = parser.parse_args()
 
@@ -52,9 +55,9 @@ def main():
     if len(args) == 1:
         arg = args[0]
         if os.path.isdir(arg):
-            process_dir(arg, output=opts.output)
+            process_dir(arg, opts)
         else:
-            process_file(arg, output=opts.output)
+            process_file(arg, opts)
     # we have multiple args
     else:
         # deal with --output option
@@ -66,7 +69,7 @@ def main():
                                  + "or multiple args, -o/--output must be a directory)") % opts.output)
         # loop over each file arg
         for file in args:
-            process_file(file, output=opts.output)
+            process_file(file, opts)
 
 if __name__ == "__main__":
     try:
