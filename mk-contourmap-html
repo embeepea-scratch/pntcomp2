@@ -1,0 +1,124 @@
+#! /usr/bin/python -u
+"""
+mk-contourmap-html [OPTIONS] DIR WIDTH HEIGHT FILE.json
+
+Write an html file containing a map of the contours in FILE.json.  The
+html file, and several other required files, will be written into a
+newly created directory DIR.  The map will be WIDTH x HEIGH pixels in
+size.
+
+The html file will be named `index.html`.
+
+By default, DIR is not relocatable, because some of the files in DIR
+will be symlinks to files outside DIR, so if DIR is moved,
+`index.html` will no longer work correctly.  The -c/--copy option will
+cause actual copies of all files to be written to DIR, so that it will
+be relocatable.
+
+DIR must not exist when this command is run, unless -f/--force is
+specified, in which case any existing content (files and directories)
+in DIR will be removed first.
+"""
+
+import optparse, pystache, os, shutil
+from error import Error
+
+def emptydir(dir):
+    """Remove all the contents of a directory"""
+    for e in os.listdir(dir):
+        path = os.path.join(dir,e)
+        if os.path.isdir(path) and not os.path.islink(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+
+def loadfile(file):
+    with open(file,"r") as f:
+        return f.read()
+
+def main():
+    parser = optparse.OptionParser(__doc__)
+
+    parser.add_option('-c', '--caption',
+                      help='caption to put under the map',
+                      dest='caption', default="", type="string")
+    parser.add_option('-f', '--force',
+                      help='force overwriting of existing directory DIR',
+                      dest='force', default=False, action="store_true")
+    parser.add_option('-R', '--relocatable',
+                      help='ensure that DIR is relocatable by copying files instead of using symlinks',
+                      dest='relocatable', default=False, action="store_true")
+    parser.add_option('-q', '--quiet',
+                      help='supress normal progress output',
+                      dest='verbose', default=True, action='store_false')
+
+    (opts, args) = parser.parse_args()
+
+    if len(args) != 4:
+        parser.print_help()
+        sys.exit(0)
+
+    DIR = args[0]
+    WIDTH = int(args[1])
+    HEIGHT = int(args[2])
+    JSON = args[3]
+
+    if WIDTH <= 0 or HEIGHT <= 0:
+        raise Error("width and height must be positive integers")
+
+    if not os.path.isfile(JSON):
+        raise Error("json file not found: %s" % JSON)
+
+    if os.path.exists(DIR):
+        if not opts.force:
+            raise Error("refusing to overwrite existing directory: %s" % DIR)
+        else:
+            emptydir(DIR)
+    else:
+        os.mkdir(DIR)
+
+    assets = os.path.join(os.path.dirname(__file__), "assets")
+
+    #
+    # Write invoke-contourmap.js
+    #
+    tpl = loadfile(os.path.join(assets, "templates/invoke-contourmap.tpl.js"))
+    with open(os.path.join(DIR,"invoke-contourmap.js"), "w") as f:
+        f.write(pystache.render(tpl, {
+                    'contour-json' : os.path.basename(JSON),
+                    'caption'      : opts.caption,
+                    'width'        : WIDTH,
+                    'height'       : HEIGHT
+                    }))
+
+    #
+    # Write index.html
+    # 
+    shutil.copy(os.path.join(assets, "templates/contourmap.html"),
+                os.path.join(DIR, "index.html"))
+
+    #
+    # symlink assets
+    #
+    for dir in ["css", "js", "lib"]:
+        if opts.relocatable:
+            shutil.copytree(os.path.abspath(os.path.join(assets, dir)),
+                            os.path.join(DIR, dir))
+        else:
+            os.symlink(os.path.abspath(os.path.join(assets, dir)),
+                       os.path.join(DIR, dir))
+
+    #
+    # symlink the json file
+    #
+    if opts.relocatable:
+        shutil.copy(os.path.abspath(JSON), os.path.join(DIR, os.path.basename(JSON)))
+    else:
+        os.symlink(os.path.abspath(JSON), os.path.join(DIR, os.path.basename(JSON)))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Error as e:
+        print "Error: %s" % e.message
