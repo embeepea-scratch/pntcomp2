@@ -1,0 +1,89 @@
+#! /usr/bin/env python -u
+"""
+pkz-contour [OPTIONS] { FILE.pkz [ ... ] | DIR }
+
+Compute contours for one or more .pkz files, writing the result to
+.json file(s) containing the contour coordinates.  If a directory is
+given as the (single) argument, operate on each .pkz file in that
+directory. Output file name(s) default to same as input file name(s),
+with ".pkz" suffix replaced by ".json", unless overridden by the
+-o/--output option.
+"""
+# (Run with no args to see options)
+
+import pnt, geojson, sys, re, multifile
+import matplotlib
+import matplotlib.cm as cm
+import matplotlib.mlab as mlab
+import matplotlib.pyplot as plt
+from error import Error
+
+#V = [ 5*x/9 for x in [-9999, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 9999] ]
+
+# --values=-9999,-0.833,-0.556,-0.278,0.0,0.278,0.556,0.833,9999
+
+# This gets set by the -v/--values option below
+V = [] 
+
+def process_file(infile, outfile, opts):
+    if not opts.quiet: print "loading %s ..." % infile,
+    g = pnt.PntGrid.load_pkzfile(infile)
+    if not opts.quiet: print "contouring ...",
+    plt.figure()
+    CS = plt.contourf(g.a, V)
+    collections = CS.collections
+    levels = CS.levels               # NOTE: len(collections) = len(levels)
+    polylists = []
+    for coll in collections:
+        plist = []
+        for p in coll.get_paths():
+            p.simplify_threshold = 0.0
+            plist = plist + p.to_polygons()
+        polylists.append(plist)
+    fclist = []
+    for i in range(0,len(collections)):
+        fc = geojson.FeatureCollection()
+        level = CS.levels[i]
+        fc.features.append(geojson.MultiPolygonFeature("level-%1d" % i, "level-%1d" % i, polylists[i]))
+        fclist.append(fc)
+    if not opts.quiet: print "writing %s ..." % outfile,
+    with open(outfile, "w") as f:
+        f.write("[")
+        for i in range(0,len(fclist)):
+            fc = fclist[i]
+            f.write("{\"level\":\"%02d\",\"featureCollection\":%s}%s" % (i, fclist[i].toString(), 
+                                                                           ("," if i<(len(fclist)-1) else "")))
+        f.write("]")
+    if not opts.quiet: print "done."
+
+if __name__ == "__main__":
+    try:
+        parser = multifile.create_parser(__doc__)
+        parser.add_option("-V", "--values",
+                          help="(required) comma-separated list of data values for contour boundaries",
+                          dest='values', type="string")
+        (opts, args) = parser.parse_args()
+        if opts.values:
+            V = [ float(x) for x in opts.values.split(',') ]
+        elif len(args) > 0:
+            raise Error("option -v/--values is required")
+        multifile.main(parser, process_file,
+                       lambda file : re.match(r'^.*\.pkz$', file),
+                       lambda file : re.sub(r'\.pkz$', '.json', file),
+                       args, opts)
+    except Error as e:
+        print "Error: %s" % e.message
+
+## for writing a geomview OFF file:
+##
+## gtmp = pnt.PntGrid()
+## off = off.Off()
+## for i in range(0,len(collections)):
+##     level    = CS.levels[i]
+##     for polygon in polylists[i]:
+##         face = []
+##         for p in polygon:
+##             face.append([ gtmp.xTr.int_to_float(p[0]), gtmp.yTr.int_to_float(p[1]), level ])
+##         off.add_face(face)
+## off.write(output_file_base + ".off")
+
