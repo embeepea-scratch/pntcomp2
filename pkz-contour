@@ -29,7 +29,7 @@ def process_file(infile, outfile, opts):
     if not opts.quiet: print "loading %s ..." % infile,
     g = pnt.PntGrid.load_pkzfile(infile)
     if not opts.quiet: print "contouring ...",
-    plt.figure()
+    fig = plt.figure()
     CS = plt.contourf(g.a, V)
     collections = CS.collections
     levels = CS.levels               # NOTE: len(collections) = len(levels)
@@ -55,6 +55,7 @@ def process_file(infile, outfile, opts):
                                                                            ("," if i<(len(fclist)-1) else "")))
         f.write("]")
     if not opts.quiet: print "done."
+    plt.close(fig)
 
 if __name__ == "__main__":
     try:
