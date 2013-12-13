@@ -1,0 +1,48 @@
+#! /usr/bin/python -u
+"""
+html2png FILE.png FILE.html
+
+Create a PNG file from an HTML file.  Uses phantomjs to do the work.
+"""
+
+import pystache, tempfile, optparse, os, sys
+from error import Error
+
+def loadfile(file):
+    with open(file,"r") as f:
+        return f.read()
+
+def main():
+    parser = optparse.OptionParser(__doc__)
+    parser.add_option("-q", '--quiet',
+                      help='supress normal progress message(s)',
+                      dest='quiet', default=False, action='store_true')
+    (opts, args) = parser.parse_args()
+
+    if len(args) != 2:
+        parser.print_help()
+        sys.exit(0)
+
+    PNGFILE = args[0]
+    HTMLFILE = args[1]
+
+    if not os.path.isfile(HTMLFILE):
+        raise Error("file not found: %s" % HTMLFILE)
+
+    assets = os.path.join(os.path.dirname(__file__), "assets")
+    tpl = loadfile(os.path.join(assets, "templates/dopage.tpl.js"))
+    tf = tempfile.NamedTemporaryFile()
+    with open(tf.name, "w") as f:
+        f.write(pystache.render(tpl, {
+                    'pngfile'   : PNGFILE,
+                    'htmlfile'  : HTMLFILE
+                    }))
+    os.system("phantomjs %s" % tf.name)
+    tf.close()
+    if not opts.quiet: print "wrote %s." % PNGFILE
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Error as e:
+        print "Error: %s" % e.message

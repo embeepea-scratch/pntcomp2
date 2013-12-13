@@ -48,9 +48,9 @@ def main():
     parser.add_option('-R', '--relocatable',
                       help='ensure that DIR is relocatable by copying files instead of using symlinks',
                       dest='relocatable', default=False, action="store_true")
-    parser.add_option('-q', '--quiet',
-                      help='supress normal progress output',
-                      dest='verbose', default=True, action='store_false')
+    parser.add_option("-q", '--quiet',
+                      help='supress normal progress message(s)',
+                      dest='quiet', default=False, action='store_true')
 
     (opts, args) = parser.parse_args()
 
