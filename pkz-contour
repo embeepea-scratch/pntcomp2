@@ -1,4 +1,4 @@
-#! /usr/bin/env python -u
+#! /usr/bin/env python
 """
 pkz-contour [OPTIONS] { FILE.pkz [ ... ] | DIR }
 
@@ -11,12 +11,14 @@ with ".pkz" suffix replaced by ".json", unless overridden by the
 """
 # (Run with no args to see options)
 
-import pnt, geojson, sys, re, multifile
+import pnt, geojson, sys, re, multifile, unbuffer
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 from error import Error
+
+unbuffer.stdout()
 
 #V = [ 5*x/9 for x in [-9999, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 9999] ]
 

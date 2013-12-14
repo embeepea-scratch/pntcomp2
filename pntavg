@@ -1,7 +1,9 @@
 #! /usr/bin/env python
 
-import re, sys, optparse
+import re, sys, optparse, unbuffer
 import numpy as np
+
+unbuffer.stdout()
 
 class Pnt:
     def __init__(self, filename=None):

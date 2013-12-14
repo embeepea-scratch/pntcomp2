@@ -1,4 +1,4 @@
-#! /usr/bin/python -u
+#! /usr/bin/env python
 """
 mk-contourmap-html [OPTIONS] DIR WIDTH HEIGHT FILE.json
 
@@ -20,8 +20,10 @@ specified, in which case any existing content (files and directories)
 in DIR will be removed first.
 """
 
-import optparse, pystache, os, shutil
+import optparse, pystache, os, shutil, unbuffer
 from error import Error
+
+unbuffer.stdout()
 
 def emptydir(dir):
     """Remove all the contents of a directory"""
@@ -42,6 +44,9 @@ def main():
     parser.add_option('-c', '--caption',
                       help='caption to put under the map',
                       dest='caption', default="", type="string")
+    parser.add_option('-C', '--colors',
+                      help='(required) colors to use for the levels, as a JSON string',
+                      dest='colors', default="", type="string")
     parser.add_option('-f', '--force',
                       help='force overwriting of existing directory DIR',
                       dest='force', default=False, action="store_true")
@@ -69,6 +74,9 @@ def main():
     if not os.path.isfile(JSON):
         raise Error("json file not found: %s" % JSON)
 
+    if not opts.colors:
+        raise Error("-C/--colors option is required")
+
     if os.path.exists(DIR):
         if not opts.force:
             raise Error("refusing to overwrite existing directory: %s" % DIR)
@@ -87,6 +95,7 @@ def main():
         f.write(pystache.render(tpl, {
                     'contour-json' : os.path.basename(JSON),
                     'caption'      : opts.caption,
+                    'colors'       : opts.colors,
                     'width'        : WIDTH,
                     'height'       : HEIGHT
                     }))

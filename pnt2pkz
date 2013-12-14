@@ -1,4 +1,4 @@
-#! /usr/bin/env python -u
+#! /usr/bin/env python
 """
 pnt-to-pkz [OPTIONS] { FILE.pnt [ ... ] | DIR }
 
@@ -10,8 +10,10 @@ the -o/--output option.
 """
 # (Run with no args to see options)
 
-import pnt, pickle, gzip, re, multifile
+import os, pnt, pickle, gzip, re, multifile, unbuffer
 from error import Error
+
+unbuffer.stdout()
 
 def process_file(file, outfile, opts):
     if not opts.quiet: print "%s -> %s ..." % (file, outfile),

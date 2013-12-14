@@ -1,12 +1,14 @@
-#! /usr/bin/python -u
+#! /usr/bin/env python
 """
 html2png FILE.png FILE.html
 
 Create a PNG file from an HTML file.  Uses phantomjs to do the work.
 """
 
-import pystache, tempfile, optparse, os, sys
+import pystache, tempfile, optparse, os, sys, unbuffer
 from error import Error
+
+unbuffer.stdout()
 
 def loadfile(file):
     with open(file,"r") as f:
