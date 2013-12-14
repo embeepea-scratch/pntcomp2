@@ -1,0 +1,51 @@
+#! /usr/bin/env python
+
+import re, sys, optparse
+import numpy as np
+
+class Pnt:
+    def __init__(self, filename=None):
+        self.npoints = 469758
+        self.a = np.zeros((self.npoints,3))
+        if filename is not None:
+            self.filename = filename
+            i = 0
+            with open(filename, "r") as f:
+                for line in [line.strip() for line in f.readlines()]:
+                    y,x,t = [float(s) for s in re.split(r'\s+', line)]
+                    self.a[i,0] = x
+                    self.a[i,1] = y
+                    self.a[i,2] = t
+                    i = i + 1
+    def write(self,filename):
+        with open(filename, "w") as f:
+            for i in range(0,len(self.a)):
+                f.write("%8.4f %9.4f  %7.2f\n" % (self.a[i,1], self.a[i,0], self.a[i,2]))
+    @staticmethod
+    def avg(filenames):
+        presult = Pnt()
+        pfiles = []
+        for filename in filenames:
+            print "loading %s" % filename
+            pfiles.append(Pnt(filename))
+        nfiles = len(pfiles)
+        print "computing average"
+        for i in range(0,presult.npoints):
+            presult.a[i,0] = pfiles[0].a[i,0] # x
+            presult.a[i,1] = pfiles[0].a[i,1] # y
+            presult.a[i,2] = sum( [ p.a[i,2] for p in pfiles ] ) / nfiles
+        return presult
+
+
+parser = optparse.OptionParser('pntavg OUTPUT_FILE INPUT_FILE [...]')
+
+(opts, args) = parser.parse_args()
+
+if len(args) < 2:
+    print "usage: pntavg OUTPUT_FILE INPUT_FILE [...]"
+    sys.exit(0)
+
+outfile = args.pop(0)
+p = Pnt.avg(args)
+print "writing %s" % outfile
+p.write(outfile)

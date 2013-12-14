@@ -32,6 +32,7 @@ class PntFile:
                 f.write("%8.4f %9.4f  %7.2f\n" % (self.a[i,1], self.a[i,0], self.a[i,2]))
     @staticmethod
     def avg(pfiles):
+        presult = PntFile()
         nfiles = len(pfiles)
         for i in range(0,presult.npoints):
             presult.a[i,0] = pfiles[0].a[i,0] # x
