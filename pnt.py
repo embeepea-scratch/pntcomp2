@@ -105,3 +105,17 @@ class PntGrid:
                 if not math.isnan(g1.a[i,j]):
                     g.a[i,j] = g1.a[i,j] - g2.a[i,j]
         return g
+    @staticmethod
+    def divide(g1, g2, factor=1.0):
+        """Compute and return the quotient of two grid file, g1 / g2, optionally
+        also multiplying by a scalar factor."""
+        g = PntGrid()
+        g.a = np.empty((g.height,g.width))
+        g.a.fill(np.nan)
+        for i in range(0,g.height):
+            for j in range(0,g.width):
+                if (not math.isnan(g1.a[i,j])
+                    and not math.isnan(g2.a[i,j])
+                    and not g2.a[i,j] == 0):
+                    g.a[i,j] = factor * g1.a[i,j] / g2.a[i,j]
+        return g
